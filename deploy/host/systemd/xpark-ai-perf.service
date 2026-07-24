@@ -1,0 +1,33 @@
+[Unit]
+Description=Xpark AI Perf — Hardware & LLM monitoring
+Documentation=https://github.com/niklasfrick/xpark-ai-perf
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xpark-ai-perf
+Group=xpark-ai-perf
+SupplementaryGroups=video render docker
+EnvironmentFile=-/etc/xpark-ai-perf/config.env
+ExecStart=/usr/local/bin/xpark-ai-perf
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Hardening (kept compatible with /proc + NVML reads)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
