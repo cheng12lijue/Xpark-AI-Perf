@@ -229,30 +229,54 @@ export function EngineCard({
         <p className="text-sm text-zinc-500">Waiting for metrics...</p>
       ) : (
         <>
-          {/* ── Grouped metrics with trend arrows — 6 categories in 2 rows (3×2) ── */}
+          {/* ── Grouped metrics with trend arrows — 6 categories in 2 rows (3×2), each with chart below ── */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 py-1">
             {/* Prefill Throughput */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">Prompt Processing / Prefill Throughput</div>
               <div className="grid grid-cols-1 gap-1.5">
                 <LiveWithTotal liveValue={fmtVal(promptTps, formatTps)} liveUnit="tok/s" trend={promptTpsTrend} totalLabel="Processed" total={totalPromptTokens} />
                 <MetricTile label="Avg" value={fmtVal(avgPromptTps, formatTps)} unit="tok/s" trend={avgPromptTpsTrend} />
                 <MetricTile label="Per-Req Avg" value={fmtVal(perReqPromptTps, formatTps)} unit="tok/s" trend={perReqPromptTpsTrend} />
               </div>
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title="Prefill Throughput (tok/s)"
+                    hideTooltipLabel
+                    series={prefillTokenSeries(chartData)}
+                    unit="tok/s"
+                    height="clamp(48px, 8vh, 120px)"
+                    requests={requestSpans}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Decode Throughput */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">Token Generation / Decode Throughput</div>
               <div className="grid grid-cols-1 gap-1.5">
                 <LiveWithTotal liveValue={fmtVal(tps, formatTps)} liveUnit="tok/s" trend={tpsTrend} totalLabel="Generated" total={totalGenerationTokens} />
                 <MetricTile label="Avg" value={fmtVal(avgTps, formatTps)} unit="tok/s" trend={avgTpsTrend} />
                 <MetricTile label="Per-Req Avg" value={fmtVal(perReqTps, formatTps)} unit="tok/s" trend={perReqTpsTrend} />
               </div>
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title="Decode Throughput (tok/s)"
+                    hideTooltipLabel
+                    series={decodeTokenSeries(chartData)}
+                    unit="tok/s"
+                    height="clamp(48px, 8vh, 120px)"
+                    requests={requestSpans}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Latency */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">{latencyHeading}</div>
               <div className="grid grid-cols-2 gap-1.5">
                 <MetricTile label="TTFT" value={fmtVal(ttftDisplay, formatTtft)} unit="ms" trend={ttftTrend} invertTrend />
@@ -262,10 +286,27 @@ export function EngineCard({
                 <MetricTile label="TPOT" value={fmtVal(tpotDisplay, formatTtft)} unit="ms" trend={tpotTrend} invertTrend />
                 <MetricTile label="Batch" value={batchSize !== null ? batchSize.toFixed(1) : '--'} unit="/step" trend={batchTrend} />
               </div>
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title={`Latency (ms) · ${latencyModeLabel(latencyMode)}`}
+                    hideTooltipLabel
+                    series={[
+                      { data: ttftSeries, label: 'TTFT', color: '#f59e0b', axis: 'left' },
+                      { data: chartData.queueTime, label: 'Queue', color: '#8b5cf6', axis: 'right' },
+                      { data: itlSeries, label: 'ITL', color: '#14b8a6', axis: 'right' },
+                      { data: tpotSeries, label: 'TPOT', color: '#ec4899', axis: 'right' },
+                    ]}
+                    unit="ms"
+                    height="clamp(48px, 8vh, 120px)"
+                    requests={requestSpans}
+                  />
+                </div>
+              )}
             </div>
 
             {/* SLO Goodput */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight truncate">SLO Goodput</div>
                 <SloSettingsControl
@@ -283,10 +324,23 @@ export function EngineCard({
                 <GoodputTile label={`TPOT ≤ ${slo.tpotMs}ms`} pct={tpotGoodput} />
                 <GoodputTile label={`E2E ≤ ${formatE2eLabel(slo.e2eMs)}`} pct={e2eGoodput} />
               </div>
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title={`E2E Latency (s) · ${latencyModeLabel(latencyMode)}`}
+                    hideTooltipLabel
+                    seriesLabel="E2E Latency"
+                    data={e2eSeries.map(p => ({ ...p, value: p.value / 1000 }))}
+                    unit="s"
+                    height="clamp(48px, 8vh, 120px)"
+                    requests={requestSpans}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Requests */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">Requests</div>
               <div className="grid grid-cols-2 gap-1.5">
                 <MetricTile label="Active" value={fmtInt(activeReqs)} />
@@ -299,10 +353,26 @@ export function EngineCard({
                   <MetricTile label="Preempt" value={fmtInt(preemptions)} warn />
                 )}
               </div>
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title="Requests"
+                    hideTooltipLabel
+                    series={[
+                      { data: chartData.activeRequests, label: 'Active', color: '#76B900', axis: 'left' },
+                      { data: chartData.queuedRequests, label: 'Queued', color: '#f59e0b', axis: 'left' },
+                      { data: chartData.totalRequests, label: 'Total', color: '#3b82f6', axis: 'right' },
+                    ]}
+                    unit=""
+                    height="clamp(48px, 8vh, 120px)"
+                    requests={requestSpans}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Cache & Speculative Decoding */}
-            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
+            <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0 flex flex-col">
               <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">Cache &amp; Speculative Decoding</div>
               <div className="grid grid-cols-2 gap-1.5">
                 <div className="flex flex-col gap-0.5 min-w-0">
@@ -337,81 +407,23 @@ export function EngineCard({
                   draftTokens={specDraftTokens}
                 />
               )}
+              {showCharts && chartData && (
+                <div className="mt-auto pt-2 min-h-0">
+                  <TimeSeriesChart
+                    title="Cache (%)"
+                    hideTooltipLabel
+                    series={[
+                      { data: chartData.kv, label: 'KV Cache', color: '#76B900' },
+                      { data: chartData.prefixCacheHit, label: 'Prefix Hit', color: '#3b82f6' },
+                    ]}
+                    yDomain={[0, 100]}
+                    unit="%"
+                    height="clamp(48px, 8vh, 120px)"
+                  />
+                </div>
+              )}
             </div>
           </div>
-
-          {/* ── Charts sit directly under the metric grid, aligned to the same 6-col layout ── */}
-          {/* Chart columns mirror metric-card columns:
-           *   1 Prefill · 2 Decode · 3 Latency · 4 SLO Goodput · 5 Requests · 6 Cache
-           * E2E sits under SLO Goodput (col 4); Requests under col 5; KV under Cache (col 6). */}
-          {showCharts && chartData && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-1">
-              <TimeSeriesChart
-                title="Prefill Throughput (tok/s)"
-                hideTooltipLabel
-                series={prefillTokenSeries(chartData)}
-                unit="tok/s"
-                height="clamp(72px, 13vh, 200px)"
-                requests={requestSpans}
-              />
-              <TimeSeriesChart
-                title="Decode Throughput (tok/s)"
-                hideTooltipLabel
-                series={decodeTokenSeries(chartData)}
-                unit="tok/s"
-                height="clamp(72px, 13vh, 200px)"
-                requests={requestSpans}
-              />
-              <TimeSeriesChart
-                title={`Latency (ms) · ${latencyModeLabel(latencyMode)}`}
-                hideTooltipLabel
-                series={[
-                  // TTFT lives on the left axis (typically hundreds of ms).
-                  // Queue + ITL share a right axis (often single/double digits)
-                  // so small variations remain visible against the TTFT scale.
-                  { data: ttftSeries, label: 'TTFT', color: '#f59e0b', axis: 'left' },
-                  { data: chartData.queueTime, label: 'Queue', color: '#8b5cf6', axis: 'right' },
-                  { data: itlSeries, label: 'ITL', color: '#14b8a6', axis: 'right' },
-                  { data: tpotSeries, label: 'TPOT', color: '#ec4899', axis: 'right' },
-                ]}
-                unit="ms"
-                height="clamp(72px, 13vh, 200px)"
-                requests={requestSpans}
-              />
-              <TimeSeriesChart
-                title={`E2E Latency (s) · ${latencyModeLabel(latencyMode)}`}
-                hideTooltipLabel
-                seriesLabel="E2E Latency"
-                data={e2eSeries.map(p => ({ ...p, value: p.value / 1000 }))}
-                unit="s"
-                height="clamp(72px, 13vh, 200px)"
-                requests={requestSpans}
-              />
-              <TimeSeriesChart
-                title="Requests"
-                hideTooltipLabel
-                series={[
-                  { data: chartData.activeRequests, label: 'Active', color: '#76B900', axis: 'left' },
-                  { data: chartData.queuedRequests, label: 'Queued', color: '#f59e0b', axis: 'left' },
-                  { data: chartData.totalRequests, label: 'Total', color: '#3b82f6', axis: 'right' },
-                ]}
-                unit=""
-                height="clamp(72px, 13vh, 200px)"
-                requests={requestSpans}
-              />
-              <TimeSeriesChart
-                title="Cache (%)"
-                hideTooltipLabel
-                series={[
-                  { data: chartData.kv, label: 'KV Cache', color: '#76B900' },
-                  { data: chartData.prefixCacheHit, label: 'Prefix Hit', color: '#3b82f6' },
-                ]}
-                yDomain={[0, 100]}
-                unit="%"
-                height="clamp(72px, 13vh, 200px)"
-              />
-            </div>
-          )}
         </>
       )}
     </div>
