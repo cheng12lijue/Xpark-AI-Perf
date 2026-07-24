@@ -14,8 +14,8 @@ interface InferenceViewProps {
 }
 
 /** Minimum height (px) below which engine trend charts are hidden to keep
- *  the view compact on small viewports. */
-const ENGINE_CHARTS_MIN_HEIGHT_PX = 520
+ *  the view compact on small viewports. Increased for 2-row (3×2) layout. */
+const ENGINE_CHARTS_MIN_HEIGHT_PX = 680
 
 export function InferenceView({
   metrics,

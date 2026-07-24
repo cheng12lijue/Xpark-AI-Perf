@@ -52,76 +52,82 @@ function App() {
 
   return (
     <div className="h-dvh flex flex-col bg-[#08080a] overflow-hidden">
-      <header className="shrink-0 border-b border-white/[0.04] px-4 py-1.5 flex justify-between items-center">
+      {/* Top header bar */}
+      <header className="shrink-0 border-b border-white/[0.04] px-4 py-1.5 flex justify-between items-center z-10">
         <h1 className="text-xl font-semibold text-zinc-100 tracking-tight" style={{ fontFamily: 'Inter, sans-serif' }}>
-          <span className="text-[#76B900]">Spark</span>{' '}
-          <span className="text-zinc-500 font-normal">Dashboard</span>
+          <span className="text-[#76B900]">AI</span>{' '}
+          <span className="text-zinc-500 font-normal">Perf</span>
         </h1>
         <ConnectionBadge status={connectionStatus} isStale={isStale} />
       </header>
 
-      <Tabs
-        defaultValue={defaultTab}
-        onValueChange={handleTabChange}
-        className="flex-1 min-h-0 flex flex-col"
-      >
-        <div className="shrink-0 border-b border-white/[0.04] px-4 py-0">
-          <TabsList variant="line" className="bg-transparent h-10 gap-0">
-            <TabsTrigger
-              value="system"
-              className="relative px-4 py-2 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-100 data-[state=active]:after:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#76B900] after:opacity-0 after:transition-opacity transition-colors hover:text-zinc-300"
-            >
-              <svg className="size-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-              系统监控
-            </TabsTrigger>
-            <TabsTrigger
-              value="inference"
-              className="relative px-4 py-2 text-sm font-medium text-zinc-500 data-[state=active]:text-zinc-100 data-[state=active]:after:opacity-100 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#76B900] after:opacity-0 after:transition-opacity transition-colors hover:text-zinc-300"
-            >
-              <svg className="size-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-              vLLM 推理
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      {/* Body: sidebar + content */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Left sidebar navigation */}
+        <Tabs
+          orientation="vertical"
+          defaultValue={defaultTab}
+          onValueChange={handleTabChange}
+          className="flex-1 min-h-0 flex"
+        >
+          <nav className="w-14 lg:w-16 shrink-0 border-r border-white/[0.04] bg-[#0c0c10] flex flex-col items-center gap-1 py-3 px-1">
+            <TabsList variant="line" className="flex flex-col bg-transparent gap-1 w-full">
+              <TabsTrigger
+                value="system"
+                className="relative flex flex-col items-center justify-center gap-1 w-full aspect-square rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.08] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+              >
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span className="hidden lg:inline">系统监控</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="inference"
+                className="relative flex flex-col items-center justify-center gap-1 w-full aspect-square rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.08] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+              >
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5"/>
+                  <path d="M2 12l10 5 10-5"/>
+                </svg>
+                <span className="hidden lg:inline">vLLM 推理</span>
+              </TabsTrigger>
+            </TabsList>
+          </nav>
 
-        <main className={`flex-1 min-h-0 flex flex-col p-3 lg:p-4 2xl:p-5 min-[1920px]:p-6 ${isStale ? 'opacity-50' : ''}`}>
-          {!metrics && connectionStatus !== 'connected' && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <h2 className="text-xl font-bold text-zinc-50 mb-2">Waiting for metrics</h2>
-                <p className="text-zinc-400">
-                  Connecting to the metrics server at {window.location.origin}. Make sure Xpark AI Perf is running.
-                </p>
+          <main className={`flex-1 min-h-0 flex flex-col p-3 lg:p-4 2xl:p-5 min-[1920px]:p-6 ${isStale ? 'opacity-50' : ''}`}>
+            {!metrics && connectionStatus !== 'connected' && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-zinc-50 mb-2">Waiting for metrics</h2>
+                  <p className="text-zinc-400">
+                    Connecting to the metrics server at {window.location.origin}. Make sure Xpark AI Perf is running.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <TabsContent value="system" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
-            <SystemView
-              metrics={metrics}
-              history={history}
-              events={events}
-              requests={requests}
-            />
-          </TabsContent>
+            <TabsContent value="system" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+              <SystemView
+                metrics={metrics}
+                history={history}
+                events={events}
+                requests={requests}
+              />
+            </TabsContent>
 
-          <TabsContent value="inference" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
-            <InferenceView
-              metrics={metrics}
-              history={history}
-              requests={requests}
-            />
-          </TabsContent>
-        </main>
-      </Tabs>
+            <TabsContent value="inference" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+              <InferenceView
+                metrics={metrics}
+                history={history}
+                requests={requests}
+              />
+            </TabsContent>
+          </main>
+        </Tabs>
+      </div>
     </div>
   )
 }

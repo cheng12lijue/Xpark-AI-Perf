@@ -86,8 +86,8 @@ export function GlobalEngineCard({ snapshot, latencyMode = 'avg' }: GlobalEngine
     <div className="flex flex-col h-full gap-3">
       <RunningCountCard count={running_count} />
 
-      {/* ── Grouped aggregate metrics — matches EngineCard layout ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 py-1">
+      {/* ── Grouped aggregate metrics — 6 categories in 2 rows (3×2) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 py-1">
         {/* Prefill Throughput */}
         <div className="bg-white/[0.02] rounded-md px-3 py-2.5 2xl:px-4 2xl:py-3 min-w-0">
           <div className="text-[11px] 2xl:text-xs min-[1920px]:text-sm font-semibold text-zinc-300 tracking-tight mb-1.5 truncate">
