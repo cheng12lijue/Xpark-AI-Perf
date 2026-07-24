@@ -1,9 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { ArcGauge, type GaugeSegment } from '@/components/gauges/ArcGauge'
 import { HBar } from '@/components/gauges/HBar'
 import { CoreHeatmap } from '@/components/charts/CoreHeatmap'
 import { TimeSeriesChart } from '@/components/charts/TimeSeriesChart'
-import { EngineSection } from '@/components/engines/EngineSection'
 import { useElementSize } from '@/hooks/useElementSize'
 import { THRESHOLDS } from '@/lib/theme'
 import { formatBytes, formatGiB, formatMhz, formatRate } from '@/lib/format'
@@ -36,25 +35,15 @@ function HwCard({ title, subtitle, children }: { title?: string; subtitle?: stri
   )
 }
 
-/** Shared responsive height for hardware mini-charts and gauges.
- *  Aggressive lower bounds keep the heatmap and memory split visible on
- *  cramped screens (13" laptops); upper bounds let big monitors breathe. */
+/** Shared responsive height for hardware mini-charts and gauges. */
 const HW_CHART_HEIGHT = 'clamp(28px, 7vh, 140px)'
 const HW_GAUGE_PX = 'clamp(36px, 5vw, 96px)'
 
-/** Number of hardware cards in the grid (used to estimate per-card height). */
+/** Number of hardware cards in the grid. */
 const HW_CARD_COUNT = 8
 /** Below this per-card height (px) the cards drop their line charts and swap
- *  square gauges for compact horizontal bars, so the dashboard stays a
- *  one-pager when vertical space is tight. */
+ *  square gauges for compact horizontal bars. */
 const HW_COMPACT_HEIGHT_PX = 124
-/** Below this dashboard-content height (px) the engine section drops its
- *  per-metric trend charts. The engine block is content-sized (shrink-0), so on
- *  short viewports its charts would otherwise crowd the hardware grid off-screen
- *  — hiding them frees the room the hardware cards need to stay visible. Keyed
- *  off the (viewport-driven, content-independent) root height so it cannot
- *  feedback-loop with the hardware per-card measurement below. */
-const ENGINE_CHARTS_MIN_HEIGHT_PX = 640
 
 export function Dashboard({
   metrics,
@@ -62,19 +51,8 @@ export function Dashboard({
   events,
   requests,
 }: DashboardProps) {
-  // Which GPU the hardware chart panels show on multi-GPU hosts. Held above
-  // the early return so incoming snapshots cannot reset it.
   const [selectedGpuIndex, setSelectedGpuIndex] = useState(0)
-  const handleActiveEngineGpuChange = useCallback((gpuIndexes?: number[]) => {
-    if (!gpuIndexes || gpuIndexes.length === 0) return
-    setSelectedGpuIndex((current) => gpuIndexes.includes(current) ? current : gpuIndexes[0])
-  }, [])
 
-  // Measure the hardware grid to adapt to available *vertical* space. The grid
-  // uses auto-rows-fr, so per-card height depends only on the container height
-  // and the column count (2 below the `sm` breakpoint, 4 at/above it) — not on
-  // card content, which keeps this free of layout feedback loops. `compact`
-  // stays false until measured (height 0) so the full layout renders first.
   const [hwGridRef, hwGridSize] = useElementSize<HTMLDivElement>()
   const hwCols = hwGridSize.width >= 640 ? 4 : 2
   const hwRows = Math.ceil(HW_CARD_COUNT / hwCols)
@@ -82,31 +60,17 @@ export function Dashboard({
     hwGridSize.height > 0 ? (hwGridSize.height - (hwRows - 1) * 6) / hwRows : 0
   const compact = perCardHeight > 0 && perCardHeight < HW_COMPACT_HEIGHT_PX
 
-  // Engine trend charts collapse on short viewports (see constant). Default to
-  // showing them until the root is measured (height 0).
-  // All hooks sit above this early return: the hook count must not change when
-  // the first snapshot flips `metrics` from null, or React unmounts the tree
-  // ("Rendered more hooks than during the previous render").
-  const [rootRef, rootSize] = useElementSize<HTMLDivElement>()
-  const showEngineCharts = rootSize.height === 0 || rootSize.height >= ENGINE_CHARTS_MIN_HEIGHT_PX
-
   if (!metrics) return null
 
   const gpus = metrics.gpus && metrics.gpus.length > 0 ? metrics.gpus : [metrics.gpu]
   const multiGpu = gpus.length > 1
   const gpuIndexOf = (gpu: MetricsSnapshot['gpu']) => gpu.index ?? 0
-  // Fall back to the primary GPU if the selected index vanishes from the feed.
   const activeGpu = gpus.find((g) => gpuIndexOf(g) === selectedGpuIndex) ?? gpus[0]
   const activeGpuIndex = gpuIndexOf(activeGpu)
-  // Single-GPU hosts keep the legacy un-prefixed history keys so the
-  // pre-multi-GPU rendering stays identical; multi-GPU hosts read the
-  // `gpu:<index>:<metric>` series (same scheme as DetailedView).
   const gpuMetricKey = (metric: string) => (multiGpu ? `gpu:${activeGpuIndex}:${metric}` : metric)
   const gpuName = activeGpu.name ?? undefined
   const gpuSubtitle = multiGpu ? `GPU ${activeGpuIndex}${gpuName ? ` · ${gpuName}` : ''}` : gpuName
 
-  // No hardware power cap is exposed on the GB10 (unified-memory SoC), so scale
-  // the gauge against the observed peak draw when the limit is absent.
   const powerHistory = history.getChartData(gpuMetricKey('gpuPower'))
   const powerPercent = computePowerScale(
     activeGpu.power_watts,
@@ -131,7 +95,6 @@ export function Dashboard({
     { value: free, total: metrics.memory.total_bytes, color: '#27272A', label: `Free: ${formatBytes(free)}` },
   ]
 
-  // Un-indexed events apply to all GPUs; indexed events only to their GPU.
   const activeGpuChartEvents = events
     .filter(e => e.gpu_index === undefined || e.gpu_index === null || e.gpu_index === activeGpuIndex)
     .map(e => ({ timestamp: e.timestamp_ms, type: e.event_type, detail: e.detail }))
@@ -139,7 +102,6 @@ export function Dashboard({
     start: r.start_ms, end: r.end_ms, tps: r.tps, ttft: r.ttft_ms,
   }))
 
-  // Compute totals as sum of two series, aligned by timestamp.
   const sumSeries = (
     a: Array<{ timestamp: number; value: number }>,
     b: Array<{ timestamp: number; value: number }>,
@@ -166,20 +128,8 @@ export function Dashboard({
   const NET_TX_COLOR = '#A855F7'
 
   return (
-    <div ref={rootRef} className="flex flex-col flex-1 min-h-0 gap-2">
-      {/* ── LLM Engines — auto-height, fits content; hardware fills remainder ── */}
-      <div className="shrink-0 min-h-0">
-        <EngineSection
-          engines={metrics.engines}
-          showCharts={showEngineCharts}
-          getChartData={history.getChartData}
-          requests={requests}
-          gpuCount={gpus.length}
-          onActiveEngineGpuChange={handleActiveEngineGpuChange}
-        />
-      </div>
-
-      {/* ── Hardware Overview — fills the rest of the viewport ── */}
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* ── Hardware Overview — fills the entire viewport ── */}
       <div className="flex-1 min-h-0 bg-[#0a0a0d]/80 rounded-xl border border-white/[0.03] p-1 lg:p-1.5 2xl:p-2 flex flex-col">
         {multiGpu && (
           <div role="group" aria-label="GPU selector" className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-1 lg:gap-1.5 mb-1 lg:mb-1.5">
