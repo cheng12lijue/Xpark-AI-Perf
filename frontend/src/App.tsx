@@ -4,6 +4,9 @@ import { useMetricsHistory } from './hooks/useMetricsHistory'
 import { ConnectionBadge } from './components/ConnectionBadge'
 import { SystemView } from './components/views/SystemView'
 import { InferenceView } from './components/views/InferenceView'
+import { ModelRegistryView } from './components/views/ModelRegistryView'
+import { KeyManagementView } from './components/views/KeyManagementView'
+import { ModelDeployView } from './components/views/ModelDeployView'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { GpuEvent, InferenceRequest } from './types/events'
 import changelogRaw from '../../CHANGELOG.md?raw'
@@ -77,8 +80,8 @@ function App() {
           onValueChange={handleTabChange}
           className="flex-1 min-h-0 flex"
         >
-          <nav className="w-16 shrink-0 border-r border-white/[0.04] bg-[#0c0c10] flex flex-col items-center gap-1 py-3 px-1">
-            <TabsList variant="line" className="flex flex-col bg-transparent gap-1 w-full">
+          <nav className="w-16 shrink-0 border-r border-white/[0.04] bg-[#0c0c10] flex flex-col items-center gap-3 py-4 px-1">
+            <TabsList variant="line" className="flex flex-col bg-transparent gap-3 w-full">
               <TabsTrigger
                 value="system"
                 className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
@@ -100,6 +103,36 @@ function App() {
                   <path d="M2 12l10 5 10-5"/>
                 </svg>
                 <span>vLLM 推理</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="registry"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
+              >
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                <span>模型广场</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="deploy"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
+              >
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span>模型部署</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="keys"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
+              >
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span>密钥管理</span>
               </TabsTrigger>
             </TabsList>
           </nav>
@@ -131,6 +164,18 @@ function App() {
                 history={history}
                 requests={requests}
               />
+            </TabsContent>
+
+            <TabsContent value="registry" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+              <ModelRegistryView />
+            </TabsContent>
+
+            <TabsContent value="deploy" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+              <ModelDeployView />
+            </TabsContent>
+
+            <TabsContent value="keys" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+              <KeyManagementView />
             </TabsContent>
           </main>
         </Tabs>
