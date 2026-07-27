@@ -1,0 +1,1 @@
+curl -s http://169.254.9.203:8001/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"deepseek-v4-flash-dspark","messages":[{"role":"user","content":"用中文说你好"}],"max_tokens":32,"temperature":0.6}'

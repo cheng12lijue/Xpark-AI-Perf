@@ -653,6 +653,204 @@ check_cluster_running() {
     fi
 }
 
+# ============================================================================
+# Compose Mode Functions
+# ============================================================================
+
+# Generate compose.yml only (image + volumes).
+# Entrypoint script is generated separately via make_node_script().
+# Returns the temp directory path.
+generate_compose_yml() {
+    local compose_dir="/tmp/$CONTAINER_NAME"
+    mkdir -p "$compose_dir"
+    rm -f "$compose_dir/compose.yml" "$compose_dir/entrypoint.sh"
+    local compose_yml="$compose_dir/compose.yml"
+
+    # ---- Extract volume mounts ----
+    local compose_volumes=""
+    compose_volumes=$(python3 -c "
+import sys
+raw = '$DOCKER_ARGS ${VLLM_SPARK_EXTRA_DOCKER_ARGS:-}'
+parts = raw.split()
+vols = []
+i = 0
+while i < len(parts):
+    p = parts[i]
+    if p == '-v' and i + 1 < len(parts):
+        vols.append(parts[i+1])
+        i += 2
+    elif p.startswith('-v'):
+        vols.append(p[2:])
+        i += 1
+    else:
+        i += 1
+for v in vols:
+    print(f'      - {v}')
+")
+
+    # ---- Docker resource args ----
+    local docker_caps
+    if [[ "$NON_PRIVILEGED_MODE" == "true" ]]; then
+        docker_caps="cap_add:
+      - IPC_LOCK
+    shm_size: ${SHM_SIZE_GB}gb
+    devices:
+      - /dev/infiniband
+    mem_limit: ${MEM_LIMIT_GB}g
+    memswap_limit: ${MEM_SWAP_LIMIT_GB}g
+    pids_limit: ${PIDS_LIMIT}"
+    else
+        docker_caps="privileged: true"
+    fi
+
+    # ---- Network (host unless -p specified) ----
+    local network_config
+    local port_yaml=""
+    if [[ ${#PORT_MAPPINGS[@]} -gt 0 ]]; then
+        for mapping in "${PORT_MAPPINGS[@]}"; do
+            port_yaml="${port_yaml}
+      - \"${mapping}\""
+        done
+        port_yaml="
+    ports:$port_yaml"
+    else
+        network_config="
+    network_mode: host"
+    fi
+
+    cat > "$compose_yml" << COMPOSE_EOF
+services:
+  vllm:
+    image: $IMAGE_NAME
+    container_name: $CONTAINER_NAME
+    runtime: nvidia
+    $docker_caps
+    ipc: host$network_config$port_yaml
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+$compose_volumes
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x vllm || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 600s
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    tty: true
+    stdin_open: true
+COMPOSE_EOF
+
+    echo "$compose_dir"
+}
+
+# Launch all nodes via compose (no-ray mode).
+# Reuses make_node_script() to generate per-node scripts.
+compose_launch() {
+    local launch_script="$1"
+    local total_nodes=$(( 1 + ${#PEER_NODES[@]} ))
+    local compose_dir
+
+    compose_dir=$(generate_compose_yml)
+    local compose_file="$compose_dir/compose.yml"
+    local project="xpark-$CONTAINER_NAME"
+
+    echo ""
+    echo "=== Launching via Docker Compose ==="
+    echo "Image: $IMAGE_NAME"
+    echo "Container: $CONTAINER_NAME"
+    echo "Head: $HEAD_IP"
+    echo "Workers: ${PEER_NODES[*]}"
+    echo "Compose: $compose_file"
+    echo ""
+
+    # ---- 复用自己的 make_node_script() 生成脚本 ----
+    # Worker nodes first
+    local rank=1
+    for worker in "${PEER_NODES[@]}"; do
+        local worker_script
+        worker_script=$(make_node_script "$launch_script" "$total_nodes" "$rank" "$HEAD_IP")
+
+        # 用自动检测的网卡名替换 recipe 写死的值
+        sed -i \
+            -e "s|^export NCCL_IB_HCA=.*|export NCCL_IB_HCA=\"$IB_IF\"|" \
+            -e "s|^export NCCL_SOCKET_IFNAME=.*|export NCCL_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            -e "s|^export GLOO_SOCKET_IFNAME=.*|export GLOO_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            -e "s|^export TP_SOCKET_IFNAME=.*|export TP_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            "$worker_script"
+
+        echo "→ Worker rank=$rank: $worker"
+
+        local remote_dir="$compose_dir"
+        ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$worker" \
+            "mkdir -p $remote_dir && rm -f $remote_dir/compose.yml $remote_dir/entrypoint.sh" || {
+            echo "ERROR: SSH to $worker failed, cannot prepare remote dir"
+            exit 1
+        }
+
+        scp -o BatchMode=yes -o StrictHostKeyChecking=no \
+            "$compose_file" "$worker:$remote_dir/compose.yml" || {
+            echo "ERROR: scp compose.yml to $worker failed"
+            exit 1
+        }
+        scp -o BatchMode=yes -o StrictHostKeyChecking=no \
+            "$worker_script" "$worker:$remote_dir/entrypoint.sh" || {
+            echo "ERROR: scp entrypoint.sh to $worker failed"
+            exit 1
+        }
+
+        ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$worker" \
+            "docker compose -f $remote_dir/compose.yml -p $project down --remove-orphans 2>/dev/null || true"
+        ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$worker" \
+            "docker compose -f $remote_dir/compose.yml -p $project up -d" || {
+            echo "ERROR: docker compose up failed on $worker"
+            ssh -o BatchMode=yes -o StrictHostKeyChecking=no "$worker" \
+                "docker compose -f $remote_dir/compose.yml -p $project logs 2>/dev/null || true"
+            exit 1
+        }
+
+        rm -f "$worker_script"
+        ((rank++))
+    done
+
+    # Head node last
+    echo "→ Head rank=0: $HEAD_IP"
+    local head_script
+    head_script=$(make_node_script "$launch_script" "$total_nodes" "0" "$HEAD_IP")
+
+    # 用自动检测的网卡名替换 recipe 写死的值
+    sed -i \
+        -e "s|^export NCCL_IB_HCA=.*|export NCCL_IB_HCA=\"$IB_IF\"|" \
+        -e "s|^export NCCL_SOCKET_IFNAME=.*|export NCCL_SOCKET_IFNAME=\"$ETH_IF\"|" \
+        -e "s|^export GLOO_SOCKET_IFNAME=.*|export GLOO_SOCKET_IFNAME=\"$ETH_IF\"|" \
+        -e "s|^export TP_SOCKET_IFNAME=.*|export TP_SOCKET_IFNAME=\"$ETH_IF\"|" \
+        "$head_script"
+
+    cp "$head_script" "$compose_dir/entrypoint.sh"
+    rm -f "$head_script"
+
+    docker compose -f "$compose_file" -p "$project" down --remove-orphans 2>/dev/null || true
+
+    if [[ "$DAEMON_MODE" == "true" ]]; then
+        docker compose -f "$compose_file" -p "$project" up -d
+        echo ""
+        echo "Cluster launched in daemon mode."
+        echo "Logs head: docker compose -f $compose_file -p $project logs -f"
+        echo "Stop all:  docker compose -f $compose_file -p $project down"
+    else
+        echo "Tailing logs from head (Ctrl+C to stop)..."
+        docker compose -f "$compose_file" -p "$project" up &
+        wait $!
+    fi
+}
+
+# ============================================================================
+# End Compose Mode Functions
+# ============================================================================
+
 # Apply Mod Function
 apply_mod_to_container() {
     local node_ip="$1"
@@ -1097,6 +1295,12 @@ if [[ "$ACTION" == "exec" ]]; then
                 PEER_NODES=("${PEER_NODES[@]:0:$(( required_nodes - 1 ))}")
             fi
         fi
+    fi
+
+    # ---- Compose 模式 (no-ray + launch-script): 直接 compose down + up ----
+    if [[ "$NO_RAY_MODE" == "true" && "$LAUNCH_SCRIPT_MODE" == "true" && ${#PEER_NODES[@]} -gt 0 ]]; then
+        compose_launch "$LAUNCH_SCRIPT_PATH"
+        exit 0
     fi
 
     start_cluster
