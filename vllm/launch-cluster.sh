@@ -847,6 +847,46 @@ compose_launch() {
     fi
 }
 
+# Solo compose variant: single-node deployment via compose + yaml.
+# Reuses generate_compose_yml, keeps original script unchanged (no node-rank patching).
+compose_launch_solo() {
+    local launch_script="$1"
+    local compose_dir=$(generate_compose_yml)
+    local compose_file="$compose_dir/compose.yml"
+    local project="xpark-$CONTAINER_NAME"
+
+    echo ""
+    echo "=== Launching Solo via Docker Compose ==="
+
+    cp "$launch_script" "$compose_dir/entrypoint.sh"
+
+    if [[ -n "$ETH_IF" ]]; then
+        sed -i \
+            -e "s|^export NCCL_SOCKET_IFNAME=.*|export NCCL_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            -e "s|^export GLOO_SOCKET_IFNAME=.*|export GLOO_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            -e "s|^export TP_SOCKET_IFNAME=.*|export TP_SOCKET_IFNAME=\"$ETH_IF\"|" \
+            "$compose_dir/entrypoint.sh"
+    fi
+    if [[ -n "$IB_IF" ]]; then
+        sed -i \
+            -e "s|^export NCCL_IB_HCA=.*|export NCCL_IB_HCA=\"$IB_IF\"|" \
+            "$compose_dir/entrypoint.sh"
+    fi
+
+    for dir in "${CACHE_DIRS_TO_CREATE[@]}"; do mkdir -p "$dir"; done
+
+    docker compose -f "$compose_file" -p "$project" down --remove-orphans 2>/dev/null || true
+
+    if [[ "$DAEMON_MODE" == "true" ]]; then
+        docker compose -f "$compose_file" -p "$project" up -d
+        echo "Launched in daemon mode."
+        echo "Logs: docker compose -f $compose_file -p $project logs -f"
+    else
+        echo "Tailing logs (Ctrl+C to stop)..."
+        docker compose -f "$compose_file" -p "$project" up
+    fi
+}
+
 # ============================================================================
 # End Compose Mode Functions
 # ============================================================================
@@ -1295,6 +1335,12 @@ if [[ "$ACTION" == "exec" ]]; then
                 PEER_NODES=("${PEER_NODES[@]:0:$(( required_nodes - 1 ))}")
             fi
         fi
+    fi
+
+    # ---- Solo compose 拦截 (solo + launch-script) ----
+    if [[ "$SOLO_MODE" == "true" && "$LAUNCH_SCRIPT_MODE" == "true" ]]; then
+        compose_launch_solo "$LAUNCH_SCRIPT_PATH"
+        exit 0
     fi
 
     # ---- Compose 模式 (no-ray + launch-script): 直接 compose down + up ----
