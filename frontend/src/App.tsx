@@ -51,7 +51,7 @@ function App() {
 
   const defaultTab = useMemo(() => {
     try {
-      return window.localStorage.getItem(VIEW_TAB_KEY) ?? 'system'
+      return window.localStorage.getItem(VIEW_TAB_KEY) ?? 'registry'
     } catch {
       return 'system'
     }

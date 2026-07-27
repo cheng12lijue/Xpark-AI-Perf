@@ -1,0 +1,99 @@
+#111
+
+recipe_version: "1"
+name: deepseek-v4-flash-dspark
+description: DeepSeek V4 Flash DSpark FP8 on dual DGX Spark TP=2 with speculative decoding
+container: aidendle94/sparkrun-vllm-ds4-gb10:production-3.7
+cluster_only: true
+mods: []
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  pipeline_parallel: 1
+  gpu_memory_utilization: 0.82
+  block_size: 256
+  max_model_len: 1048576
+  max_num_batched_tokens: 8192
+  max_num_seqs: 16
+  served_model_name: DeepSeek-V4-Flash
+env:
+  HF_HOME: /root/.cache/huggingface
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
+  VLLM_USE_B12X_MOE: "1"
+  VLLM_TRITON_MLA_SPARSE: "1"
+  VLLM_USE_V2_MODEL_RUNNER: "1"
+  VLLM_USE_FLASHINFER_SAMPLER: "1"
+  VLLM_USE_BREAKABLE_CUDAGRAPH: "0"
+  VLLM_USE_AOT_COMPILE: "1"
+  VLLM_USE_MEGA_AOT_ARTIFACT: "0"
+  VLLM_DSPARK_REPLICATE_MARKOV_W1: "1"
+  VLLM_DSPARK_CONFIDENCE_SCHEDULER: "off"
+  VLLM_DSPARK_LOCAL_ARGMAX: "1"
+  VLLM_DSPARK_FUSED_MARKOV_ARGMAX: "0"
+  VLLM_DSV4_B12X_COMPRESSED_MLA: "0"
+  VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
+  VLLM_USE_B12X_WO_PROJECTION: "1"
+  VLLM_PREFIX_CACHE_RETENTION_INTERVAL: "4096"
+  CUTE_DSL_ARCH: sm_121a
+  TORCH_CUDA_ARCH_LIST: 12.1a
+  TRITON_CACHE_DIR: "/root/.triton"
+  VLLM_ENGINE_READY_TIMEOUT_S: "7200"
+  NCCL_NET: IB
+  NCCL_IB_DISABLE: "0"
+  NCCL_IB_GID_INDEX: "5"
+  GLOO_SOCKET_IFNAME: enp1s0f1np1
+  TP_SOCKET_IFNAME: enp1s0f1np1
+  NCCL_CROSS_NIC: "1"
+  NCCL_PROTO: LL,LL128,Simple
+  NCCL_CUMEM_ENABLE: "0"
+  NCCL_IGNORE_CPU_AFFINITY: "1"
+  NCCL_DEBUG: WARN
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  NCCL_IB_HCA: rocep1s0f1
+  NCCL_SOCKET_IFNAME: enp1s0f1np1
+command: |
+  for HCA in $(echo $NCCL_IB_HCA | tr ',' ' '); do
+    for i in $(seq 0 15); do
+      t=$(cat /sys/class/infiniband/$HCA/ports/1/gid_attrs/types/$i 2>/dev/null || true)
+      g=$(cat /sys/class/infiniband/$HCA/ports/1/gids/$i 2>/dev/null || true)
+      case "$t" in *"RoCE v2"*) case "$g" in *0000:0000:0000:0000:0000:ffff:*) export NCCL_IB_GID_INDEX=$i; break 2;; esac;; esac
+    done
+  done
+  echo "[dspark] GID_INDEX=$NCCL_IB_GID_INDEX"
+  vllm serve /root/DeepSeek-V4-Flash \
+      --served-model-name DeepSeek-V4-Flash \
+      --host 0.0.0.0 \
+      --port 8000 \
+      --trust-remote-code \
+      --tensor-parallel-size 2 \
+      --pipeline-parallel-size 1 \
+      --kv-cache-dtype fp8 \
+      --block-size 256 \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --async-scheduling \
+      --no-scheduler-reserve-full-isl \
+      --max-model-len 1048576 \
+      --max-num-seqs 16 \
+      --max-num-batched-tokens 8192 \
+      --gpu-memory-utilization 0.85 \
+      --distributed-executor-backend mp \
+      --enable-flashinfer-autotune \
+      --attention-backend FLASHINFER_MLA_SPARSE_DSV4 \
+      --moe-backend b12x \
+      --disable-custom-all-reduce \
+      --load-format auto \
+      --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}' \
+      --max-cudagraph-capture-size 16 \
+      --speculative-config '{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"probabilistic"}' \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --enable-auto-tool-choice \
+      --reasoning-parser deepseek_v4 \
+      --reasoning-config '{"reasoning_parser":"deepseek_v4","reasoning_start_str":"<think>","reasoning_end_str":"</think>"}' \
+      --default-chat-template-kwargs '{"thinking":false,"preserve_thinking":false,"reasoning_effort":"max"}' \
+      --generation-config vllm \
+      --override-generation-config '{"temperature":0.7,"top_p":0.9,"top_k":40,"repetition_penalty":1.05}'

@@ -1,0 +1,61 @@
+recipe_version: "1"
+name: DeepSeek-V4-Flash
+description: DeepSeek V4 Flash FP8 on dual DGX Spark TP=2 with PR 41834 SM12x support
+model: deepseek-ai/DeepSeek-V4-Flash
+#container: aidendle94/sparkrun-vllm-ds4-gb10:production-v2
+#container: v4-flashinfer:latest
+container: vllm-node-dsv4-b12x-fix
+cluster_only: true
+
+build_args: []
+mods: []
+
+env:
+  NCCL_IB_GID_INDEX: 0
+  NCCL_NET: IB
+  NCCL_IB_DISABLE: 0
+  NCCL_IB_GID_INDEX: 0
+  VLLM_USE_B12X_MOE: 1
+  CUDA_HOME: /opt/env/targets/sbsa-linux
+  HF_HOME: /root/.cache/huggingface
+  TORCH_CUDA_ARCH_LIST: 12.1a
+  FLASHINFER_CUDA_ARCH_LIST: 12.1a
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
+  VLLM_USE_B12X_MOE: "1"
+  VLLM_SPARSE_INDEXER_MAX_LOGITS_MB: "256"
+  FLASHINFER_DISABLE_VERSION_CHECK: 1
+  TILELANG_CLEANUP_TEMP_FILES: 1
+  DG_JIT_USE_NVRTC: 0
+  DG_JIT_PRINT_COMPILER_COMMAND: 1
+  NCCL_NET: IB
+  NCCL_IB_DISABLE: 0
+  VLLM_NCCL_SO_PATH: /opt/env/lib/python3.12/site-packages/nvidia/nccl/lib/libnccl.so.2
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+
+command: |
+  vllm serve /root/DeepSeek-V4-Flash \
+      --served-model-name DeepSeek-V4-Flash \
+      --host 0.0.0.0 \
+      --port 8000 \
+      --trust-remote-code \
+      --tensor-parallel-size 2 \
+      --pipeline-parallel-size 1 \
+      --kv-cache-dtype fp8 \
+      --block-size 256 \
+      --enable-prefix-caching \
+      --max-model-len 1048576 \
+      --max-num-seqs 16 \
+      --enable-chunked-prefill \
+      --max-num-batched-tokens 8192 \
+      --gpu-memory-utilization 0.80 \
+      --distributed-executor-backend mp \
+      --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}' \
+      --speculative_config '{"method":"mtp","num_speculative_tokens":2}' \
+      --override-generation-config '{"temperature": 0.7, "top_p": 0.9 }' \
+      --enable-flashinfer-autotune \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --enable-auto-tool-choice \
+      --load-format safetensors \
+      --nnodes 2
