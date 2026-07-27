@@ -58,16 +58,19 @@ function App() {
     <div className="h-dvh flex flex-col bg-[#08080a] overflow-hidden">
       {/* Top header bar */}
       <header className="shrink-0 border-b border-white/[0.04] px-4 py-1.5 flex justify-between items-center z-10">
-        <h1 className="text-xl font-semibold text-zinc-100 tracking-tight" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <h1 className="text-xl font-semibold text-zinc-100 tracking-tight flex items-baseline gap-0" style={{ fontFamily: 'Inter, sans-serif' }}>
           <span className="text-[#76B900]">AI</span>{' '}
           <span className="text-zinc-500 font-normal">Perf</span>
+          <span className="ml-1.5 text-[9px] font-mono text-[#76B900] font-normal leading-none translate-y-[-1px]">
+            v{APP_VERSION}
+          </span>
         </h1>
         <ConnectionBadge status={connectionStatus} isStale={isStale} />
       </header>
 
       {/* Body: sidebar + content */}
       <div className="flex-1 min-h-0 flex">
-        {/* Left sidebar navigation */}
+        {/* Left sidebar navigation — always expanded */}
         <Tabs
           orientation="vertical"
           defaultValue={defaultTab}
@@ -78,25 +81,25 @@ function App() {
             <TabsList variant="line" className="flex flex-col bg-transparent gap-1 w-full">
               <TabsTrigger
                 value="system"
-                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
               >
                 <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                   <line x1="8" y1="21" x2="16" y2="21"/>
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
-                <span className="inline">系统监控</span>
+                <span>系统监控</span>
               </TabsTrigger>
               <TabsTrigger
                 value="inference"
-                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-400 data-active:text-[#76B900] data-active:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-200 hover:bg-white/[0.03] text-[10px] leading-tight"
               >
                 <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                   <path d="M2 17l10 5 10-5"/>
                   <path d="M2 12l10 5 10-5"/>
                 </svg>
-                <span className="inline">vLLM 推理</span>
+                <span>vLLM 推理</span>
               </TabsTrigger>
             </TabsList>
           </nav>
@@ -132,13 +135,6 @@ function App() {
           </main>
         </Tabs>
       </div>
-
-      {/* Bottom footer — version indicator */}
-      <footer className="shrink-0 flex justify-end px-4 pb-1">
-        <span className="text-[11px] font-mono text-[#76B900] leading-none">
-          v{APP_VERSION}
-        </span>
-      </footer>
     </div>
   )
 }

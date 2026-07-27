@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar tab labels always visible with enhanced active-tab green highlight.
 - Removed "Prefix Queries" metric block from engine cards for cleaner layout.
 
+### Fixed
+
+- Frontend Docker build failure: copy CHANGELOG.md into build stage so the
+  `../../CHANGELOG.md?raw` import resolves inside the container.
+- Sidebar tab active-state highlight not applying — corrected Base UI attribute
+  from `data-[state=active]` to `data-active`.
+- Inactive sidebar icons too dim; bumped from `text-zinc-500` to `text-zinc-400`.
+
+### Changed
+
+- Version indicator moved from footer to header as a subscript badge next to
+  the "AI Perf" title, using the brand-green color.
+- Docker image references lowercased to `ghcr.io/arcseekerx/...` (Docker
+  rejects uppercase in repository names).
+- `docker run` quick-start switched to `--network host` (consistent with
+  compose `network_mode: host`).
+
 ## [0.1.0] - 2026-07-24
 
 ### Added

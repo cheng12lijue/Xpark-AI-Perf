@@ -8,7 +8,7 @@ to **`ghcr.io/ArcSeekerX/xpark-ai-perf`**, tagged `:vX.Y.Z`, `:vX.Y`, and
 ## Quick start
 
 ```bash
-docker run --rm --gpus all --pid=host -p 3000:3000 \
+docker run --rm --network host --gpus all --pid=host \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --group-add "$(getent group docker | cut -d: -f3)" \
   ghcr.io/ArcSeekerX/xpark-ai-perf:latest

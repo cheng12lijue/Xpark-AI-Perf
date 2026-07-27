@@ -8,6 +8,9 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ .
+# latest version string — place it at /app/CHANGELOG.md so the relative
+# path resolves correctly inside the container build context.
+COPY CHANGELOG.md ../
 RUN npm run build
 
 # ---------- stage: chef ----------

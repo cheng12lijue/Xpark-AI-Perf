@@ -13,7 +13,7 @@
 # Dockerfile copies src/, frontend/, Cargo.*, and deploy/host/.
 services:
   xpark-ai-perf:
-    image: ${XPARK_AI_PERF_IMAGE:-ghcr.io/ArcSeekerX/xpark-ai-perf:latest}
+    image: ${XPARK_AI_PERF_IMAGE:-ghcr.io/arcseekerx/xpark-ai-perf:latest}
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile

@@ -7,7 +7,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE_NAME="xpark-ai-perf"
-GHCR_IMAGE="ghcr.io/ArcSeekerX/xpark-ai-perf"
+GHCR_IMAGE="ghcr.io/arcseekerx/xpark-ai-perf"
 GHCR_TAG="dev"
 
 usage() {
