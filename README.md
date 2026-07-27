@@ -4,6 +4,12 @@ AI inference performance engineering platform — purpose-built for XFusion Fusi
 
 ![Stack](https://img.shields.io/badge/Rust-Axum-orange) ![Stack](https://img.shields.io/badge/React_19-TypeScript-blue) ![Stack](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4) ![Stack](https://img.shields.io/badge/Vite_8-646CFF) ![License](https://img.shields.io/badge/license-MIT-green)
 
+## Screenshots
+
+| Inference Monitoring | Model Registry |
+|:---:|:---:|
+| ![inference-monitoring](docs/screenshots/inference-monitoring.png) | ![model-registry](docs/screenshots/model-registry.png) |
+
 ## Quick Start
 
 ### Install on your Linux host
