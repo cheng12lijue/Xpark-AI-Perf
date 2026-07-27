@@ -6,8 +6,12 @@ import { SystemView } from './components/views/SystemView'
 import { InferenceView } from './components/views/InferenceView'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { GpuEvent, InferenceRequest } from './types/events'
+import changelogRaw from '../../CHANGELOG.md?raw'
 
 const VIEW_TAB_KEY = 'xpark-ai-perf:view-tab'
+
+// Extract the latest version from CHANGELOG.md (first ## [x.y.z] heading)
+const APP_VERSION = changelogRaw.match(/## \[([\d.]+)\]/)?.[1] ?? '0.0.0'
 
 function App() {
   const { metrics, connectionStatus, isStale } = useMetrics()
@@ -70,29 +74,29 @@ function App() {
           onValueChange={handleTabChange}
           className="flex-1 min-h-0 flex"
         >
-          <nav className="w-14 lg:w-16 shrink-0 border-r border-white/[0.04] bg-[#0c0c10] flex flex-col items-center gap-1 py-3 px-1">
+          <nav className="w-16 shrink-0 border-r border-white/[0.04] bg-[#0c0c10] flex flex-col items-center gap-1 py-3 px-1">
             <TabsList variant="line" className="flex flex-col bg-transparent gap-1 w-full">
               <TabsTrigger
                 value="system"
-                className="relative flex flex-col items-center justify-center gap-1 w-full aspect-square rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.08] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
               >
                 <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                   <line x1="8" y1="21" x2="16" y2="21"/>
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
-                <span className="hidden lg:inline">系统监控</span>
+                <span className="inline">系统监控</span>
               </TabsTrigger>
               <TabsTrigger
                 value="inference"
-                className="relative flex flex-col items-center justify-center gap-1 w-full aspect-square rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.08] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
+                className="relative flex flex-col items-center justify-center gap-1 w-full rounded-lg text-zinc-500 data-[state=active]:text-[#76B900] data-[state=active]:bg-[#76B900]/[0.12] transition-colors hover:text-zinc-300 hover:bg-white/[0.03] text-[10px] leading-tight"
               >
                 <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                   <path d="M2 17l10 5 10-5"/>
                   <path d="M2 12l10 5 10-5"/>
                 </svg>
-                <span className="hidden lg:inline">vLLM 推理</span>
+                <span className="inline">vLLM 推理</span>
               </TabsTrigger>
             </TabsList>
           </nav>
@@ -128,6 +132,13 @@ function App() {
           </main>
         </Tabs>
       </div>
+
+      {/* Bottom footer — version indicator */}
+      <footer className="shrink-0 flex justify-end px-4 pb-1">
+        <span className="text-[11px] font-mono text-[#76B900] leading-none">
+          v{APP_VERSION}
+        </span>
+      </footer>
     </div>
   )
 }
